@@ -35,7 +35,7 @@ public:
 
     const float DefaultFontSize = 15;
 
-    enum class Columns { POSITION, CAR_NUMBER, NAME, DELTA, BEST, LAST, LICENSE, IRATING, PIT };
+    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA };
 
     OverlayStandings()
         : Overlay("OverlayStandings")
@@ -78,7 +78,8 @@ protected:
         m_columns.add( (int)Columns::IRATING,    computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
         m_columns.add( (int)Columns::BEST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
         m_columns.add( (int)Columns::LAST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
-        m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"9999.9999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+        m_columns.add( (int)Columns::GAP,        computeTextExtent( L"9999.9", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+        m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"99.99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
     }
 
     virtual void onUpdate()
@@ -87,7 +88,8 @@ protected:
             int     carIdx = 0;
             int     lapCount = 0;
             float   pctAroundLap = 0;
-            int     lapDelta = 0;
+            int     lapGap = 0;
+            float   gap = 0;
             float   delta = 0;
             int     position = 0;
             float   best = 0;
@@ -101,6 +103,7 @@ protected:
         // Init array
         float fastestLapTime = FLT_MAX;
         int fastestLapIdx = -1;
+        int selfCarIdx = -1;
         for( int i=0; i<IR_MAX_CARS; ++i )
         {
             const Car& car = ir_session.cars[i];
@@ -113,7 +116,7 @@ protected:
             ci.lapCount     = std::max( ir_CarIdxLap.getInt(i), ir_CarIdxLapCompleted.getInt(i) );
             ci.position     = ir_getPosition(i);
             ci.pctAroundLap = ir_CarIdxLapDistPct.getFloat(i);
-            ci.delta        = ir_session.sessionType!=SessionType::RACE ? 0 : -ir_CarIdxF2Time.getFloat(i);
+            ci.gap          = ir_session.sessionType!=SessionType::RACE ? 0 : -ir_CarIdxF2Time.getFloat(i);
             ci.last         = ir_CarIdxLastLapTime.getFloat(i);
             ci.pitAge       = ir_CarIdxLap.getInt(i) - car.lastLapInPits;
 
@@ -127,6 +130,9 @@ protected:
                 fastestLapTime = ci.best;
                 fastestLapIdx = (int)carInfo.size()-1;
             }
+
+            if (car.isSelf)
+                selfCarIdx = i;
         }
 
         if( fastestLapIdx >= 0 )
@@ -140,12 +146,13 @@ protected:
                 return ap < bp;
             } );
 
-        // Compute lap deltas to leader
+        // Compute lap gap to leader and compute delta
         for( int i=0; i<(int)carInfo.size(); ++i )
         {
             const CarInfo& ciLeader = carInfo[0];
             CarInfo&       ci       = carInfo[i];
-            ci.lapDelta = ir_getLapDeltaToLeader( ci.carIdx, ciLeader.carIdx );
+            ci.lapGap = ir_getLapDeltaToLeader( ci.carIdx, ciLeader.carIdx );
+            ci.delta = ir_getDeltaTime( ci.carIdx, selfCarIdx );
         }
 
         const float  fontSize           = g_cfg.getFloat( m_name, "font_size", DefaultFontSize );
@@ -163,6 +170,8 @@ protected:
         const float4 licenseTextCol     = g_cfg.getFloat4( m_name, "license_text_col", float4(1,1,1,0.9f) );
         const float4 fastestLapCol      = g_cfg.getFloat4( m_name, "fastest_lap_col", float4(1,0,1,1) );
         const float4 pitCol             = g_cfg.getFloat4( m_name, "pit_col", float4(0.94f,0.8f,0.13f,1) );
+        const float4 deltaPosCol        = g_cfg.getFloat4( m_name, "delta_positive_col", float4(0.0f, 1.0f, 0.0f, 1.0f));
+        const float4 deltaNegCol        = g_cfg.getFloat4( m_name, "delta_negative_col", float4(1.0f, 0.0f, 0.0f, 1.0f));
         const float  licenseBgAlpha     = g_cfg.getFloat( m_name, "license_background_alpha", 0.8f );
         const bool   imperial           = ir_DisplayUnits.getInt() == 0;
 
@@ -214,9 +223,13 @@ protected:
         swprintf( s, _countof(s), L"Last" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
 
-        clm = m_columns.get( (int)Columns::DELTA );
-        swprintf( s, _countof(s), L"Delta" );
+        clm = m_columns.get( (int)Columns::GAP );
+        swprintf( s, _countof(s), L"Gap" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
+
+        clm = m_columns.get((int)Columns::DELTA);
+        swprintf( s, _countof(s), L"Delta");
+        m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
 
         // Content
         for( int i=0; i<(int)carInfo.size(); ++i )
@@ -331,7 +344,7 @@ protected:
                 str.clear();
                 if( ci.best > 0 )
                     str = formatLaptime( ci.best );
-                m_brush->SetColor( ci.hasFastestLap ? fastestLapCol : otherCarCol );
+                m_brush->SetColor( ci.hasFastestLap ? fastestLapCol : textCol);
                 m_text.render( m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
             }
 
@@ -341,38 +354,48 @@ protected:
                 str.clear();
                 if( ci.last > 0 )
                     str = formatLaptime( ci.last );
-                m_brush->SetColor( otherCarCol );
+                m_brush->SetColor(textCol);
                 m_text.render( m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
             }
 
-            // Delta
-            if( ci.lapDelta || ci.delta )
+            // Gap
+            if( ci.lapGap || ci.gap )
             {
-                clm = m_columns.get( (int)Columns::DELTA );
-                if( ci.lapDelta < 0 )
-                    swprintf( s, _countof(s), L"%d L", ci.lapDelta );
+                clm = m_columns.get( (int)Columns::GAP );
+                if( ci.lapGap < 0 )
+                    swprintf( s, _countof(s), L"%d L", ci.lapGap);
                 else
-                    swprintf( s, _countof(s), L"%.03f", ci.delta );
-                m_brush->SetColor( otherCarCol );
+                    swprintf( s, _countof(s), L"%.01f", ci.gap);
+                m_brush->SetColor( textCol );
                 m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
+            }
+
+            // Delta
+            if ( ci.delta)
+            {
+                clm = m_columns.get((int)Columns::DELTA);
+                swprintf(s, _countof(s), L"%.01f", std::abs(ci.delta));
+                if (ci.delta > 0)
+                    m_brush->SetColor(deltaPosCol);
+                else
+                    m_brush->SetColor(deltaNegCol);
+                m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
             }
         }
         
         // Footer
         {
             float trackTemp = ir_TrackTempCrew.getFloat();
-            float airTemp   = ir_AirTemp.getFloat();
             char  tempUnit  = 'C';
 
             if( imperial ) {
                 trackTemp = celsiusToFahrenheit( trackTemp );
-                airTemp   = celsiusToFahrenheit( airTemp );
                 tempUnit  = 'F';
             }
 
             m_brush->SetColor(float4(1,1,1,0.4f));
             m_renderTarget->DrawLine( float2(0,ybottom),float2((float)m_width,ybottom),m_brush.Get() );
-            swprintf( s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c      Air Temp: %.1f°%c      Setup: %s      Subsession: %d", ir_session.sof, trackTemp, tempUnit, airTemp, tempUnit, ir_session.isFixedSetup?L"fixed":L"open", ir_session.subsessionId );
+            swprintf( s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c", ir_session.sof, trackTemp, tempUnit);
             y = m_height - (m_height-ybottom)/2;
             m_brush->SetColor( headerCol );
             m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width-2*xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );

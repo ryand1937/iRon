@@ -649,6 +649,22 @@ int ir_getLapDeltaToLeader( int carIdx, int ldrIdx )
     return lapDelta;
 }
 
+float ir_getDeltaTime(int carIdx, int selfIdx)
+{
+    if (ir_isPreStart() || carIdx < 0 || selfIdx < 0)
+        return 0;
+
+    const float carTimeLap = ir_CarIdxLastLapTime.getFloat(carIdx);
+    const float selfTimeLap = ir_CarIdxLastLapTime.getFloat(selfIdx);
+
+    if (carTimeLap <= 0 || selfTimeLap <= 0)
+        return 0;
+
+    float lapDelta = carTimeLap - selfTimeLap;
+
+    return lapDelta;
+}
+
 void ir_printVariables()
 {
     if( !irsdk_isConnected() )
