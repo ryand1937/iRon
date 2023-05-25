@@ -42,7 +42,7 @@ class OverlayRelative : public Overlay
 
     protected:
 
-        enum class Columns { POSITION, CAR_NUMBER, NAME, DELTA, LICENSE, SAFETY_RATING, IRATING, PIT };
+        enum class Columns { POSITION, CAR_NUMBER, NAME, DELTA, LICENSE, SAFETY_RATING, IRATING, PIT, LAST };
 
         virtual void onEnable()
         {
@@ -74,7 +74,6 @@ class OverlayRelative : public Overlay
             m_columns.add( (int)Columns::POSITION,   computeTextExtent( L"P99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
             m_columns.add( (int)Columns::CAR_NUMBER, computeTextExtent( L"#999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
             m_columns.add( (int)Columns::NAME,       0, fontSize/2 );
-            m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"+99L  -99.9", m_dwriteFactory.Get(), m_textFormat.Get() ).x, 1, fontSize/2 );
 
             if( g_cfg.getBool(m_name,"show_pit_age",true) )
                 m_columns.add( (int)Columns::PIT,           computeTextExtent( L"999", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/4 );
@@ -84,6 +83,10 @@ class OverlayRelative : public Overlay
                 m_columns.add( (int)Columns::SAFETY_RATING, computeTextExtent( L"A 4.44", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/8 );
             if( g_cfg.getBool(m_name,"show_irating",true) )
                 m_columns.add( (int)Columns::IRATING,       computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/8 );
+
+            m_columns.add((int)Columns::LAST, computeTextExtent(L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2);
+
+            m_columns.add((int)Columns::DELTA, computeTextExtent(L"+99L  -99.9", m_dwriteFactory.Get(), m_textFormat.Get()).x, 1, fontSize / 2);
         }
 
         virtual void onUpdate()
@@ -93,6 +96,7 @@ class OverlayRelative : public Overlay
                 float   delta = 0;
                 int     lapDelta = 0;
                 int     pitAge = 0;
+                float   last = 0;
             };
             std::vector<CarInfo> relatives;
             relatives.reserve( IR_MAX_CARS );
@@ -147,6 +151,7 @@ class OverlayRelative : public Overlay
                     ci.delta = delta;
                     ci.lapDelta = lapDelta;
                     ci.pitAge = ir_CarIdxLap.getInt(i) - car.lastLapInPits;
+                    ci.last = ir_CarIdxLastLapTime.getFloat(i);
                     relatives.push_back( ci );
                 }
             }
@@ -232,6 +237,7 @@ class OverlayRelative : public Overlay
                     col.a *= 0.5f;
                 
                 wchar_t s[512];
+                std::string str;
                 D2D1_RECT_F r = {};
                 D2D1_ROUNDED_RECT rr = {};
                 const ColumnLayout::Column* clm = nullptr;
@@ -341,6 +347,24 @@ class OverlayRelative : public Overlay
                     m_renderTarget->FillRoundedRectangle( &rr, m_brush.Get() );
                     m_brush->SetColor( iratingTextCol );
                     m_text.render( m_renderTarget.Get(), s, m_textFormatSmall.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
+                }
+
+                // Last
+                {
+                    clm = m_columns.get((int)Columns::LAST);
+                    str.clear();
+                    if (ci.last > 0)
+                        str = formatLaptime(ci.last);
+                    m_brush->SetColor(col);
+                    m_text.render(m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+                }
+
+                // Delta
+                {
+                    clm = m_columns.get((int)Columns::DELTA);
+                    swprintf(s, _countof(s), L"%.1f", ci.delta);
+                    m_brush->SetColor(col);
+                    m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
                 }
             }
 
