@@ -78,7 +78,10 @@ protected:
         m_columns.add( (int)Columns::IRATING,    computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
         m_columns.add( (int)Columns::GAP,        computeTextExtent(L"9999.9", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2 );
         m_columns.add( (int)Columns::BEST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
-        m_columns.add( (int)Columns::LAST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+
+        if (g_cfg.getBool(m_name, "show_lap_time", true))
+            m_columns.add( (int)Columns::LAST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+
         m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"99.99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
     }
 
@@ -233,9 +236,10 @@ protected:
         swprintf( s, _countof(s), L"Best" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
 
-        clm = m_columns.get( (int)Columns::LAST );
-        swprintf( s, _countof(s), L"Last" );
-        m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
+        if (clm = m_columns.get( (int)Columns::LAST ) ) {
+            swprintf(s, _countof(s), L"Last");
+            m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+        }
 
         clm = m_columns.get((int)Columns::DELTA);
         swprintf( s, _countof(s), L"Delta");
@@ -371,8 +375,8 @@ protected:
             }
 
             // Last
+            if (clm = m_columns.get((int)Columns::LAST))
             {
-                clm = m_columns.get( (int)Columns::LAST );
                 str.clear();
                 if( ci.last > 0 )
                     str = formatLaptime( ci.last );
