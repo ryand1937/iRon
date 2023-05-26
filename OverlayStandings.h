@@ -76,9 +76,9 @@ protected:
         m_columns.add( (int)Columns::PIT,        computeTextExtent( L"P.Age", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
         m_columns.add( (int)Columns::LICENSE,    computeTextExtent( L"A 4.44", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
         m_columns.add( (int)Columns::IRATING,    computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
+        m_columns.add( (int)Columns::GAP,        computeTextExtent(L"9999.9", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2 );
         m_columns.add( (int)Columns::BEST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
         m_columns.add( (int)Columns::LAST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
-        m_columns.add( (int)Columns::GAP,        computeTextExtent( L"9999.9", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
         m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"99.99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
     }
 
@@ -158,6 +158,11 @@ protected:
             CarInfo&       ci       = carInfo[i];
             ci.lapGap = ir_getLapDeltaToLeader( ci.carIdx, ciLeader.carIdx );
             ci.delta = ir_getDeltaTime( ci.carIdx, selfCarIdx );
+
+            if (ir_session.sessionType != SessionType::RACE) {
+                ci.gap = ir_CarIdxF2Time.getFloat(ci.carIdx) - ir_CarIdxF2Time.getFloat(ciLeader.carIdx);
+                ci.gap = ci.gap < 0 ? 0 : ci.gap;
+            }
         }
 
         const float  fontSize           = g_cfg.getFloat( m_name, "font_size", DefaultFontSize );
@@ -220,16 +225,16 @@ protected:
         swprintf( s, _countof(s), L"IR" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
 
+        clm = m_columns.get((int)Columns::GAP);
+        swprintf(s, _countof(s), L"Gap");
+        m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+
         clm = m_columns.get( (int)Columns::BEST );
         swprintf( s, _countof(s), L"Best" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
 
         clm = m_columns.get( (int)Columns::LAST );
         swprintf( s, _countof(s), L"Last" );
-        m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
-
-        clm = m_columns.get( (int)Columns::GAP );
-        swprintf( s, _countof(s), L"Gap" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
 
         clm = m_columns.get((int)Columns::DELTA);
@@ -343,6 +348,18 @@ protected:
                 m_text.render( m_renderTarget.Get(), s, m_textFormatSmall.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
             }
 
+            // Gap
+            if (ci.lapGap || ci.gap)
+            {
+                clm = m_columns.get((int)Columns::GAP);
+                if (ci.lapGap < 0)
+                    swprintf(s, _countof(s), L"%d L", ci.lapGap);
+                else
+                    swprintf(s, _countof(s), L"%.01f", ci.gap);
+                m_brush->SetColor(textCol);
+                m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+            }
+
             // Best
             {
                 clm = m_columns.get( (int)Columns::BEST );
@@ -361,18 +378,6 @@ protected:
                     str = formatLaptime( ci.last );
                 m_brush->SetColor(textCol);
                 m_text.render( m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
-            }
-
-            // Gap
-            if( ci.lapGap || ci.gap )
-            {
-                clm = m_columns.get( (int)Columns::GAP );
-                if( ci.lapGap < 0 )
-                    swprintf( s, _countof(s), L"%d L", ci.lapGap);
-                else
-                    swprintf( s, _countof(s), L"%.01f", ci.gap);
-                m_brush->SetColor( textCol );
-                m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
             }
 
             // Delta
