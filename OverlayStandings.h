@@ -312,7 +312,7 @@ protected:
             {
                 clm = m_columns.get( (int)Columns::NAME );
                 m_brush->SetColor( textCol );
-                swprintf( s, _countof(s), L"%S", car.userName.c_str() );
+                swprintf( s, _countof(s), L"%S", car.teamName.c_str() );
                 m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_LEADING );
             }
 

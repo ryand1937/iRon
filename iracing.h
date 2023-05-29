@@ -60,6 +60,7 @@ struct SessionPosTimes
 struct Car
 {    
     std::string     userName;
+    std::string     teamName;
     int             carNumber = 0;
     std::string     carNumberStr;
     std::string     licenseStr;
