@@ -38,11 +38,22 @@ public:
     const int defaultNumAheadDrivers = 5;
     const int defaultNumBehindDrivers = 5;
 
-    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA, POSITIONS_GAINED };
+    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA, L5, POSITIONS_GAINED };
 
     OverlayStandings()
         : Overlay("OverlayStandings")
-    {}
+    {
+        avgL5Times.reserve(IR_MAX_CARS);
+
+        for (int i = 0; i < IR_MAX_CARS; ++i) {
+            avgL5Times.emplace_back();
+            avgL5Times[i].reserve(5);
+
+            for (int j = 0; j < 5; ++j) {
+                avgL5Times[i].push_back(0.0);
+            }
+        }
+    }
 
 protected:
 
@@ -84,9 +95,13 @@ protected:
         m_columns.add( (int)Columns::BEST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
 
         if (g_cfg.getBool(m_name, "show_lap_time", true))
-            m_columns.add( (int)Columns::LAST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+            m_columns.add( (int)Columns::LAST,   computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
 
-        m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"99.99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+        if (g_cfg.getBool(m_name, "show_delta", true))
+            m_columns.add( (int)Columns::DELTA,  computeTextExtent( L"99.99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
+
+        if (g_cfg.getBool(m_name, "show_L5", false))
+            m_columns.add( (int)Columns::L5,     computeTextExtent(L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2 );
     }
 
     virtual void onUpdate()
@@ -101,6 +116,7 @@ protected:
             int     position = 0;
             float   best = 0;
             float   last = 0;
+            float   l5 = 0;
             bool    hasFastestLap = false;
             int     pitAge = 0;
             int     positionsChanged = 0;
@@ -111,7 +127,8 @@ protected:
         // Init array
         float fastestLapTime = FLT_MAX;
         int fastestLapIdx = -1;
-        int selfCarIdx = -1;
+        int selfPosition = ir_getPosition(ir_session.driverCarIdx);
+
         for( int i=0; i<IR_MAX_CARS; ++i )
         {
             const Car& car = ir_session.cars[i];
@@ -155,11 +172,24 @@ protected:
 
             if( ci.best > 0 && ci.best < fastestLapTime ) {
                 fastestLapTime = ci.best;
-                fastestLapIdx = (int)carInfo.size()-1;
+                fastestLapIdx = ci.carIdx - 1;
             }
 
-            if (car.isSelf)
-                selfCarIdx = i;
+            if(ci.lapCount >= 0)
+                avgL5Times[ci.carIdx][ci.lapCount % 5] = ci.last;
+
+            float total = 0;
+            int conteo = 0;
+            for (float time : avgL5Times[ci.carIdx]) {
+                if (time > 0.0) {
+                    total += time;
+                    conteo++;
+                }
+            }
+
+            ci.l5 = conteo ? total / conteo : 0.0F;
+
+            carInfo.push_back(ci);
         }
 
         if( fastestLapIdx >= 0 )
@@ -179,7 +209,7 @@ protected:
             const CarInfo& ciLeader = carInfo[0];
             CarInfo&       ci       = carInfo[i];
             ci.lapGap = ir_getLapDeltaToLeader( ci.carIdx, ciLeader.carIdx );
-            ci.delta = ir_getDeltaTime( ci.carIdx, selfCarIdx );
+            ci.delta = ir_getDeltaTime( ci.carIdx, ir_session.driverCarIdx );
 
             if (ir_session.sessionType != SessionType::RACE) {
                 ci.gap = ir_CarIdxF2Time.getFloat(ci.carIdx) - ir_CarIdxF2Time.getFloat(ciLeader.carIdx);
@@ -267,14 +297,21 @@ protected:
             m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
         }
 
-        clm = m_columns.get((int)Columns::DELTA);
-        swprintf( s, _countof(s), L"Delta");
+        if (clm = m_columns.get((int)Columns::DELTA)) {
+            swprintf(s, _countof(s), L"Delta");
         m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+        }
+
+        if (clm = m_columns.get((int)Columns::L5)) {
+            swprintf(s, _countof(s), L"Last 5 avg");
+            m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+        }
 
         // Content
+        int drawnCars = 0;
         for( int i=0; i<(int)carInfo.size(); ++i )
         {
-            y = 2*yoff + lineHeight/2 + (i+1)*lineHeight;
+            y = 2*yoff + lineHeight/2 + (drawnCars+1)*lineHeight;
 
             if( y+lineHeight/2 > ybottom )
                 break;
@@ -457,6 +494,24 @@ protected:
                     m_brush->SetColor(deltaNegCol);
                 m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
             }
+            }
+
+            // Average 5 laps
+            if (clm = m_columns.get((int)Columns::L5))
+            {
+                str.clear();
+                if (ci.l5 > 0 && selfPosition > 0) {
+                    str = formatLaptime(ci.l5);
+                    if (ci.l5 > carInfo[selfPosition - 1].l5)
+                        m_brush->SetColor(deltaPosCol);
+                    else
+                        m_brush->SetColor(deltaNegCol);
+                }
+                else
+                    m_brush->SetColor(textCol);
+                
+                m_text.render(m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+        }
         }
         
         // Footer
@@ -492,4 +547,5 @@ protected:
 
     ColumnLayout m_columns;
     TextCache    m_text;
+    std::vector<std::vector<float>> avgL5Times;
 };
