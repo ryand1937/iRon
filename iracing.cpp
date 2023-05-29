@@ -507,9 +507,9 @@ ConnectionStatus ir_tick()
             sprintf( path, "DriverInfo:Drivers:CarIdx:{%d}CarClassEstLapTime:", carIdx );
             parseYamlFloat( sessionYaml, path, &car.carClassEstLapTime );
 
-            car.practicePosition = 0;
-            car.qualPosition = 0;
-            car.racePosition = 0;
+            car.qualy.position = 0;
+            car.practice.position = 0;
+            car.race.position = 0;
         }
 
         // Qualifying results info
@@ -518,10 +518,10 @@ ConnectionStatus ir_tick()
             sprintf( path, "QualifyResultsInfo:Results:Position:{%d}CarIdx:", pos );
             int carIdx = -1;
             if( parseYamlInt( sessionYaml, path, &carIdx ) ) {
-                ir_session.cars[carIdx].qualPosition = pos + 1;
+                ir_session.cars[carIdx].qualy.position = pos + 1;
 
                 sprintf( path, "QualifyResultsInfo:Results:Position:{%d}FastestTime:", pos );
-                parseYamlFloat( sessionYaml, path, &ir_session.cars[carIdx].qualTime );
+                parseYamlFloat( sessionYaml, path, &ir_session.cars[carIdx].qualy.fastestTime );
             }
         }
 
@@ -548,20 +548,35 @@ ConnectionStatus ir_tick()
                 sprintf( path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}CarIdx:", session, pos );
                 if( parseYamlInt( sessionYaml, path, &carIdx ) )
                 {
-                    if( sessionNameStr == "PRACTICE" )
-                        ir_session.cars[carIdx].practicePosition = pos;
-                    else if( sessionNameStr == "QUALIFY" )
-                        ir_session.cars[carIdx].qualPosition = pos;
-                    else if( sessionNameStr == "RACE" )
-                        ir_session.cars[carIdx].racePosition = pos;
+                    if (sessionNameStr == "PRACTICE") {
+                        ir_session.cars[carIdx].practice.position = pos;
 
                     sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);   
-                    parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].lastTime);
+                        parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].practice.lastTime);
+
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}FastestTime:", session, pos);
+                        parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].practice.fastestTime);
+                    }     
+                    else if (sessionNameStr == "QUALIFY") {
+                        ir_session.cars[carIdx].qualy.position = pos;
+
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
+                        parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].qualy.lastTime);
+
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}FastestTime:", session, pos);
+                        parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].qualy.fastestTime);
+                    } 
+                    else if (sessionNameStr == "RACE") {
+                        ir_session.cars[carIdx].race.position = pos;
+
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
+                        parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].race.lastTime);
 
                     sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}FastestTime:", session, pos);
-                    parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].fastestTime);
+                        parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].race.fastestTime);
                 }
             }
+        }
         }
 
         // SoF
@@ -647,15 +662,15 @@ int ir_getPosition( int carIdx )
     if( pos > 0 )
         return pos;
 
-    pos = ir_session.cars[carIdx].racePosition;
+    pos = ir_session.cars[carIdx].race.position;
     if( pos > 0 )
         return pos;
 
-    pos = ir_session.cars[carIdx].qualPosition;
+    pos = ir_session.cars[carIdx].qualy.position;
     if( pos > 0 )
         return pos;
 
-    pos = ir_session.cars[carIdx].practicePosition;
+    pos = ir_session.cars[carIdx].practice.position;
     if( pos > 0 )
         return pos;
 

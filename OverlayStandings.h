@@ -124,12 +124,25 @@ protected:
             ci.pitAge       = ir_CarIdxLap.getInt(i) - car.lastLapInPits;
 
             ci.best         = ir_CarIdxBestLapTime.getFloat(i);
-            if( ir_session.sessionType==SessionType::RACE && ir_SessionState.getInt()<=irsdk_StateWarmup || ir_session.sessionType==SessionType::QUALIFY && ci.best<=0 )
-                ci.best = car.qualTime;
+            if (ir_session.sessionType == SessionType::RACE && ir_SessionState.getInt() <= irsdk_StateWarmup || ir_session.sessionType == SessionType::QUALIFY && ci.best <= 0)
+                ci.best = car.qualy.fastestTime;
 
             if (ir_CarIdxTrackSurface.getInt(ci.carIdx) == irsdk_NotInWorld) {
-                ci.best = car.fastestTime;
-                ci.last = car.lastTime;
+                switch (ir_session.sessionType) {
+                    case SessionType::QUALIFY:
+                        ci.best = car.qualy.fastestTime;
+                        ci.last = car.qualy.lastTime;
+                        break;
+                    case SessionType::PRACTICE:
+                        ci.best = car.practice.fastestTime;
+                        ci.last = car.practice.lastTime;
+                        break;
+                    case SessionType::RACE:
+                        ci.best = car.race.fastestTime;
+                        ci.last = car.race.lastTime;
+                        break;
+                    default:
+                        break;
             }
    
             carInfo.push_back( ci );
