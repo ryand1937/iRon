@@ -76,10 +76,6 @@ struct Car
     int             isFlagged = 0;
     int             incidentCount = 0;
     float           carClassEstLapTime = 0;
-    int             practicePosition = 0;
-    int             qualPosition = 0;
-    float           qualTime = 0;
-    int             racePosition = 0;
     int             lastLapInPits = 0;
     SessionPosTimes practice;
     SessionPosTimes qualy;
@@ -414,6 +410,9 @@ float ir_estimateLaptime();
 
 // Get the best known position, from the latest session we can find.
 int ir_getPosition( int carIdx );
+
+// Get gained positions.
+int ir_getPositionsChanged(int carIdx);
 
 // Get lap gap to P0 car if available.
 int ir_getLapDeltaToLeader( int carIdx, int ldrIdx );

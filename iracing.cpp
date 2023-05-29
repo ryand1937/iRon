@@ -677,6 +677,18 @@ int ir_getPosition( int carIdx )
     return 0;
 }
 
+int ir_getPositionsChanged(int carIdx)
+{
+
+    int posAct = ir_CarIdxPosition.getInt(carIdx);
+    int posQualy = ir_session.cars[carIdx].qualy.position;
+
+    if (posQualy > 0 && posAct > 0)
+        return posQualy - posAct;
+
+    return 0;
+}
+
 int ir_getLapDeltaToLeader( int carIdx, int ldrIdx )
 {
     if( ir_session.sessionType!=SessionType::RACE || ir_isPreStart() || carIdx < 0 || ldrIdx < 0 )

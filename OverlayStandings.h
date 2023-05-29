@@ -35,7 +35,7 @@ public:
 
     const float DefaultFontSize = 15;
 
-    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA };
+    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA, POSITIONS_GAINED };
 
     OverlayStandings()
         : Overlay("OverlayStandings")
@@ -76,6 +76,7 @@ protected:
         m_columns.add( (int)Columns::PIT,        computeTextExtent( L"P.Age", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
         m_columns.add( (int)Columns::LICENSE,    computeTextExtent( L"A 4.44", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
         m_columns.add( (int)Columns::IRATING,    computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
+        m_columns.add( (int)Columns::POSITIONS_GAINED, computeTextExtent(L"↑6", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2);
         m_columns.add( (int)Columns::GAP,        computeTextExtent(L"9999.9", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2 );
         m_columns.add( (int)Columns::BEST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
 
@@ -99,6 +100,7 @@ protected:
             float   last = 0;
             bool    hasFastestLap = false;
             int     pitAge = 0;
+            int     positionsChanged = 0;
         };
         std::vector<CarInfo> carInfo;
         carInfo.reserve( IR_MAX_CARS );
@@ -122,6 +124,7 @@ protected:
             ci.gap          = ir_session.sessionType!=SessionType::RACE ? 0 : -ir_CarIdxF2Time.getFloat(i);
             ci.last         = ir_CarIdxLastLapTime.getFloat(i);
             ci.pitAge       = ir_CarIdxLap.getInt(i) - car.lastLapInPits;
+            ci.positionsChanged = ir_getPositionsChanged(i);
 
             ci.best         = ir_CarIdxBestLapTime.getFloat(i);
             if (ir_session.sessionType == SessionType::RACE && ir_SessionState.getInt() <= irsdk_StateWarmup || ir_session.sessionType == SessionType::QUALIFY && ci.best <= 0)
@@ -145,7 +148,7 @@ protected:
                         break;
             }
    
-            carInfo.push_back( ci );
+            }
 
             if( ci.best > 0 && ci.best < fastestLapTime ) {
                 fastestLapTime = ci.best;
@@ -240,6 +243,10 @@ protected:
         clm = m_columns.get( (int)Columns::IRATING );
         swprintf( s, _countof(s), L"IR" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
+
+        clm = m_columns.get((int)Columns::POSITIONS_GAINED);
+        swprintf(s, _countof(s), L" ");
+        m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER);
 
         clm = m_columns.get((int)Columns::GAP);
         swprintf(s, _countof(s), L"Gap");
@@ -363,6 +370,33 @@ protected:
                 m_renderTarget->FillRoundedRectangle( &rr, m_brush.Get() );
                 m_brush->SetColor( iratingTextCol );
                 m_text.render( m_renderTarget.Get(), s, m_textFormatSmall.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
+            }
+
+            // Positions gained
+            {
+                clm = m_columns.get((int)Columns::POSITIONS_GAINED);
+
+                if (ci.positionsChanged == 0) {
+                    swprintf(s, _countof(s), L"-");
+                    m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+                }
+                else {
+                    if (ci.positionsChanged > 0) {
+                        swprintf(s, _countof(s), L"▲");
+                        m_brush->SetColor(deltaPosCol);
+                    }
+                    else {
+                        swprintf(s, _countof(s), L"▼");
+                        m_brush->SetColor(deltaNegCol);
+                    }
+                    m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+
+                    m_brush->SetColor(textCol);
+                    swprintf(s, _countof(s), L"%d", std::abs(ci.positionsChanged));
+
+                    m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, 17 + xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+                }
+                
             }
 
             // Gap
