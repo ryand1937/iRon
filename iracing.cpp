@@ -451,19 +451,19 @@ ConnectionStatus ir_tick()
                     case '\r':
                         c = ' ';
                         break;
-                    case 'Ã­':
+                    case 'í':
                         c = 'i';
                         break;
-                    case 'Ã³':
+                    case 'ó':
                         c = 'o';
                         break;
-                    case 'Ãº':
+                    case 'ú':
                         c = 'u';
                         break;
-                    case 'Ã¡':
+                    case 'á':
                         c = 'a';
                         break;
-                    case 'Ã©':
+                    case 'é':
                         c = 'e';
                         break;
                     default:
@@ -551,7 +551,7 @@ ConnectionStatus ir_tick()
                     if (sessionNameStr == "PRACTICE") {
                         ir_session.cars[carIdx].practice.position = pos;
 
-                    sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);   
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].practice.lastTime);
 
                         sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}FastestTime:", session, pos);
@@ -572,11 +572,11 @@ ConnectionStatus ir_tick()
                         sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].race.lastTime);
 
-                    sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}FastestTime:", session, pos);
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}FastestTime:", session, pos);
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].race.fastestTime);
+                    }
                 }
             }
-        }
         }
 
         // SoF
@@ -728,6 +728,23 @@ float ir_getDeltaTime(int carIdx, int selfIdx)
     float lapDelta = carTimeLap - selfTimeLap;
 
     return lapDelta;
+}
+
+int ir_getLapsRemaining() {
+    double sessionTime = ir_SessionTimeRemain.getDouble();
+
+    const bool   sessionIsTimeLimited = ir_SessionLapsTotal.getInt() == 32767 && ir_SessionTimeRemain.getDouble() < 48.0 * 3600.0;  // most robust way I could find to figure out whether this is a time-limited session (info in session string is often misleading)
+    const int    remainingLaps = sessionIsTimeLimited ? int(0.5 + sessionTime / ir_estimateLaptime()) : (ir_SessionLapsRemainEx.getInt() != 32767 ? ir_SessionLapsRemainEx.getInt() : -1);
+
+    return remainingLaps;
+}
+
+void ir_getSessionTimeRemaining(int& hours, int& mins, int& secs) {
+    double sessionTime = ir_SessionTimeRemain.getDouble();
+    
+    hours = int(sessionTime / 3600.0);
+    mins = int(sessionTime / 60.0) % 60;
+    secs = (int)fmod(sessionTime, 60.0);
 }
 
 void ir_printVariables()

@@ -274,17 +274,6 @@ class OverlayRelative : public Overlay
                     m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_LEADING );
                 }
 
-                // Delta
-                {
-                    clm = m_columns.get( (int)Columns::DELTA );
-                    if( ci.lapDelta )
-                        swprintf( s, _countof(s), L"%+dL  %.1f", ci.lapDelta, ci.delta );
-                    else
-                        swprintf( s, _countof(s), L"%.1f", ci.delta );
-                    m_brush->SetColor( col );
-                    m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
-                }
-
                 // Pit age
                 if( (clm = m_columns.get((int)Columns::PIT)) && !ir_isPreStart() && (ci.pitAge>=0||ir_CarIdxOnPitRoad.getBool(ci.carIdx)) )
                 {
@@ -368,6 +357,30 @@ class OverlayRelative : public Overlay
                 }
             }
 
+           /* // Footer
+            {
+                float trackTemp = ir_TrackTempCrew.getFloat();
+                char  tempUnit = 'C';
+
+                double sessionTime = ir_SessionTimeRemain.getDouble();
+                int laps = std::max(ir_CarIdxLap.getInt(ir_session.driverCarIdx), ir_CarIdxLapCompleted.getInt(ir_session.driverCarIdx));
+
+                const bool   sessionIsTimeLimited = ir_SessionLapsTotal.getInt() == 32767 && ir_SessionTimeRemain.getDouble() < 48.0 * 3600.0;  // most robust way I could find to figure out whether this is a time-limited session (info in session string is often misleading)
+                const int    remainingLaps = sessionIsTimeLimited ? int(0.5 + sessionTime / ir_estimateLaptime()) : (ir_SessionLapsRemainEx.getInt() != 32767 ? ir_SessionLapsRemainEx.getInt() : -1);
+
+                const int    hours = int(sessionTime / 3600.0);
+                const int    mins = int(sessionTime / 60.0) % 60;
+                const int    secs = (int)fmod(sessionTime, 60.0);
+
+                m_brush->SetColor(float4(1, 1, 1, 0.4f));
+                m_renderTarget->DrawLine(float2(0, ybottom), float2((float)m_width, ybottom), m_brush.Get());
+                swprintf(s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c      Session end: %d:%02d:%02d       Laps: %d/%d", ir_session.sof, trackTemp, tempUnit, hours, mins, secs, laps, remainingLaps);
+                y = m_height - (m_height - ybottom) / 2;
+                m_brush->SetColor(headerCol);
+                m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width - 2 * xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER);
+            }
+            */
+
             // Minimap
             if( minimapEnabled )
             {
@@ -439,6 +452,12 @@ class OverlayRelative : public Overlay
                 }
             }
             m_renderTarget->EndDraw();
+        }
+
+
+        virtual bool canEnableWhileNotDriving() const
+        {
+            return true;
         }
 
     protected:

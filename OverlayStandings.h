@@ -1,4 +1,4 @@
-/*
+﻿/*
 MIT License
 
 Copyright (c) 2021-2022 L. E. Spalt
@@ -149,7 +149,7 @@ protected:
             ci.best         = ir_CarIdxBestLapTime.getFloat(i);
             if (ir_session.sessionType == SessionType::RACE && ir_SessionState.getInt() <= irsdk_StateWarmup || ir_session.sessionType == SessionType::QUALIFY && ci.best <= 0)
                 ci.best = car.qualy.fastestTime;
-
+                
             if (ir_CarIdxTrackSurface.getInt(ci.carIdx) == irsdk_NotInWorld) {
                 switch (ir_session.sessionType) {
                     case SessionType::QUALIFY:
@@ -166,8 +166,8 @@ protected:
                         break;
                     default:
                         break;
-            }
-   
+                }
+                
             }
 
             if( ci.best > 0 && ci.best < fastestLapTime ) {
@@ -299,7 +299,7 @@ protected:
 
         if (clm = m_columns.get((int)Columns::DELTA)) {
             swprintf(s, _countof(s), L"Delta");
-        m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+            m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
         }
 
         if (clm = m_columns.get((int)Columns::L5)) {
@@ -484,16 +484,17 @@ protected:
             }
 
             // Delta
-            if ( ci.delta)
+            if (clm = m_columns.get((int)Columns::DELTA))
             {
-                clm = m_columns.get((int)Columns::DELTA);
-                swprintf(s, _countof(s), L"%.01f", std::abs(ci.delta));
-                if (ci.delta > 0)
-                    m_brush->SetColor(deltaPosCol);
-                else
-                    m_brush->SetColor(deltaNegCol);
-                m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
-            }
+                if (ci.delta)
+                {
+                    swprintf(s, _countof(s), L"%.01f", std::abs(ci.delta));
+                    if (ci.delta > 0)
+                        m_brush->SetColor(deltaPosCol);
+                    else
+                        m_brush->SetColor(deltaNegCol);
+                    m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+                }
             }
 
             // Average 5 laps
@@ -511,7 +512,7 @@ protected:
                     m_brush->SetColor(textCol);
                 
                 m_text.render(m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
-        }
+            }
         }
         
         // Footer
@@ -524,9 +525,15 @@ protected:
                 tempUnit  = 'F';
             }
 
+            int hours, mins, secs;
+
+            ir_getSessionTimeRemaining(hours, mins, secs);
+            const int laps = std::max(ir_CarIdxLap.getInt(ir_session.driverCarIdx), ir_CarIdxLapCompleted.getInt(ir_session.driverCarIdx));
+            const int remainingLaps = ir_getLapsRemaining();
+
             m_brush->SetColor(float4(1,1,1,0.4f));
             m_renderTarget->DrawLine( float2(0,ybottom),float2((float)m_width,ybottom),m_brush.Get() );
-            swprintf( s, _countof(s), L"SoF: %d      Track Temp: %.1f�%c", ir_session.sof, trackTemp, tempUnit);
+            swprintf( s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c      Session end: %d:%02d:%02d       Laps: %d/%d", ir_session.sof, trackTemp, tempUnit, hours, mins, secs, laps, remainingLaps);
             y = m_height - (m_height-ybottom)/2;
             m_brush->SetColor( headerCol );
             m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width-2*xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );

@@ -420,5 +420,11 @@ int ir_getLapDeltaToLeader( int carIdx, int ldrIdx );
 // Get lap delta if available.
 float ir_getDeltaTime(int carIdx, int selfIdx);
 
+// Get laps remaining for sesion
+int ir_getLapsRemaining();
+
+// Get session time remaining
+void ir_getSessionTimeRemaining(int& hours, int& mins, int& secs);
+
 // Print all the variables the sim supports.
 void ir_printVariables();

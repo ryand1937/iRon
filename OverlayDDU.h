@@ -509,7 +509,7 @@ class OverlayDDU : public Overlay
                     float val = avgPerLap;
                     if( imperial )
                         val *= 0.264172f;
-                    swprintf( s, _countof(s), imperial ? L"%.1f gl" : L"%.1f lt", val );
+                    swprintf( s, _countof(s), imperial ? L"%.1f gl" : L"%.2f lt", val );
                     m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), m_boxFuel.x0, m_boxFuel.x1-xoff, m_boxFuel.y0+m_boxFuel.h*6.9f/12.0f, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
                 }
 
@@ -626,7 +626,7 @@ class OverlayDDU : public Overlay
 
             // Incidents
             {
-                const int inc = ir_PlayerCarMyIncidentCount.getInt();
+                const int inc = ir_PlayerCarTeamIncidentCount.getInt();
                 swprintf( s, _countof(s), L"%dx", inc );
                 m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), m_boxInc.x0, m_boxInc.x1, m_boxInc.y0+m_boxInc.h*0.5f, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
             }
