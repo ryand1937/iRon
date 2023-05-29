@@ -442,6 +442,35 @@ ConnectionStatus ir_tick()
                 continue;
             }
 
+            // Remove line breaks in user names if we find any and special characters
+            for (char& c : car.userName) {
+                switch (c) {
+                    case '\n':
+                        c = ' ';
+                        break;
+                    case '\r':
+                        c = ' ';
+                        break;
+                    case 'í':
+                        c = 'i';
+                        break;
+                    case 'ó':
+                        c = 'o';
+                        break;
+                    case 'ú':
+                        c = 'u';
+                        break;
+                    case 'á':
+                        c = 'a';
+                        break;
+                    case 'é':
+                        c = 'e';
+                        break;
+                    default:
+                        c = c;
+                }
+            }
+
             sprintf( path, "DriverInfo:Drivers:CarIdx:{%d}CarNumber:", carIdx );
             parseYamlStr( sessionYaml, path, car.carNumberStr );
 
