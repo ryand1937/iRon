@@ -34,6 +34,9 @@ class OverlayStandings : public Overlay
 public:
 
     const float DefaultFontSize = 15;
+    const int defaultNumTopDrivers = 3;
+    const int defaultNumAheadDrivers = 5;
+    const int defaultNumBehindDrivers = 5;
 
     enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA, POSITIONS_GAINED };
 
@@ -202,6 +205,9 @@ protected:
         const float4 deltaPosCol        = g_cfg.getFloat4( m_name, "delta_positive_col", float4(0.0f, 1.0f, 0.0f, 1.0f));
         const float4 deltaNegCol        = g_cfg.getFloat4( m_name, "delta_negative_col", float4(1.0f, 0.0f, 0.0f, 1.0f));
         const float  licenseBgAlpha     = g_cfg.getFloat( m_name, "license_background_alpha", 0.8f );
+        const int  numTopDrivers        = g_cfg.getInt(m_name, "num_top_drivers", defaultNumTopDrivers);
+        const int  numAheadDrivers      = g_cfg.getInt(m_name, "num_ahead_drivers", defaultNumAheadDrivers);
+        const int  numBehindDrivers     = g_cfg.getInt(m_name, "num_behind_drivers", defaultNumBehindDrivers);
         const bool   imperial           = ir_DisplayUnits.getInt() == 0;
 
         const float xoff = 10.0f;
@@ -272,6 +278,15 @@ protected:
 
             if( y+lineHeight/2 > ybottom )
                 break;
+
+            // Focus on the driver
+            if (i == selfPosition - numAheadDrivers - 2)
+                drawnCars++;
+
+            if (selfPosition > 0 && i >= numTopDrivers && (i < selfPosition - numAheadDrivers - 1 || i > selfPosition + numBehindDrivers - 1))
+                continue;
+
+            drawnCars++;
 
             // Alternating line backgrounds
             if( i & 1 && alternateLineBgCol.a > 0 )
