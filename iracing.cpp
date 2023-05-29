@@ -435,9 +435,12 @@ ConnectionStatus ir_tick()
                 continue;
             }
 
-            // Remove line breaks in user names if we find any (saw this happen once)
-            for( char& c : car.userName )
-                c = (c=='\n'||c=='\r') ? ' ' : c;
+            sprintf(path, "DriverInfo:Drivers:CarIdx:{%d}TeamName:", carIdx);
+            if (!parseYamlStr(sessionYaml, path, car.teamName))
+            {
+                car = Car();
+                continue;
+            }
 
             sprintf( path, "DriverInfo:Drivers:CarIdx:{%d}CarNumber:", carIdx );
             parseYamlStr( sessionYaml, path, car.carNumberStr );
