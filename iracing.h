@@ -68,6 +68,8 @@ struct Car
     float           licenseSR = 0;
     std::string     licenseColStr;
     float4          licenseCol = float4(0,0,0,1);
+    std::string     classColStr;
+    float4          classCol = float4(0, 0, 0, 1);
     int             irating = 0;
     int             isSelf = 0;
     int             isPaceCar = 0;
