@@ -175,7 +175,7 @@ protected:
                 fastestLapIdx = ci.carIdx - 1;
             }
 
-            if(ci.lapCount >= 0)
+            if(ci.lapCount > 0)
                 avgL5Times[ci.carIdx][ci.lapCount % 5] = ci.last;
 
             float total = 0;
@@ -195,6 +195,9 @@ protected:
         if( fastestLapIdx >= 0 )
             carInfo[fastestLapIdx].hasFastestLap = true;
 
+        const CarInfo ciLeader = carInfo[0];
+        const CarInfo ciSelf = carInfo[ir_PlayerCarIdx.getInt() > 0 ? ir_PlayerCarIdx.getInt() - 1 : 0];
+        
         // Sort by position
         std::sort( carInfo.begin(), carInfo.end(),
             []( const CarInfo& a, const CarInfo& b ) {
@@ -206,7 +209,6 @@ protected:
         // Compute lap gap to leader and compute delta
         for( int i=0; i<(int)carInfo.size(); ++i )
         {
-            const CarInfo& ciLeader = carInfo[0];
             CarInfo&       ci       = carInfo[i];
             ci.lapGap = ir_getLapDeltaToLeader( ci.carIdx, ciLeader.carIdx );
             ci.delta = ir_getDeltaTime( ci.carIdx, ir_session.driverCarIdx );
@@ -309,24 +311,31 @@ protected:
 
         // Content
         int drawnCars = 0;
+        int selfClassDrivers = 0;
         for( int i=0; i<(int)carInfo.size(); ++i )
         {
             y = 2*yoff + lineHeight/2 + (drawnCars+1)*lineHeight;
+
+            if (ir_CarIdxClass.getInt(carInfo[i].carIdx) != ir_PlayerCarClass.getInt()) {
+                continue;
+            }
+
+            selfClassDrivers++;
 
             if( y+lineHeight/2 > ybottom )
                 break;
 
             // Focus on the driver
-            if (i == selfPosition - numAheadDrivers - 2)
+            if (selfClassDrivers == selfPosition - numAheadDrivers - 2)
                 drawnCars++;
 
-            if (selfPosition > 0 && i >= numTopDrivers && (i < selfPosition - numAheadDrivers - 1 || i > selfPosition + numBehindDrivers - 1))
+            if (selfPosition > 0 && selfClassDrivers >= numTopDrivers && (selfClassDrivers < selfPosition - numAheadDrivers - 1 || selfClassDrivers > selfPosition + numBehindDrivers - 1))
                 continue;
 
             drawnCars++;
 
             // Alternating line backgrounds
-            if( i & 1 && alternateLineBgCol.a > 0 )
+            if(selfClassDrivers & 1 && alternateLineBgCol.a > 0 )
             {
                 D2D1_RECT_F r = { 0, y-lineHeight/2, (float)m_width,  y+lineHeight/2 };
                 m_brush->SetColor( alternateLineBgCol );
@@ -503,7 +512,7 @@ protected:
                 str.clear();
                 if (ci.l5 > 0 && selfPosition > 0) {
                     str = formatLaptime(ci.l5);
-                    if (ci.l5 > carInfo[selfPosition - 1].l5)
+                    if (ci.l5 >= ciSelf.l5)
                         m_brush->SetColor(deltaPosCol);
                     else
                         m_brush->SetColor(deltaNegCol);
@@ -530,10 +539,14 @@ protected:
             ir_getSessionTimeRemaining(hours, mins, secs);
             const int laps = std::max(ir_CarIdxLap.getInt(ir_session.driverCarIdx), ir_CarIdxLapCompleted.getInt(ir_session.driverCarIdx));
             const int remainingLaps = ir_getLapsRemaining();
+            int totalLaps = remainingLaps;
+            
+            if (ir_SessionLapsTotal.getInt() == 32767)
+                totalLaps = laps + remainingLaps;
 
             m_brush->SetColor(float4(1,1,1,0.4f));
             m_renderTarget->DrawLine( float2(0,ybottom),float2((float)m_width,ybottom),m_brush.Get() );
-            swprintf( s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c      Session end: %d:%02d:%02d       Laps: %d/%d", ir_session.sof, trackTemp, tempUnit, hours, mins, secs, laps, remainingLaps);
+            swprintf( s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c      Session end: %d:%02d:%02d       Laps: %d/~%d", ir_session.sof, trackTemp, tempUnit, hours, mins, secs, laps, totalLaps);
             y = m_height - (m_height-ybottom)/2;
             m_brush->SetColor( headerCol );
             m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width-2*xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );

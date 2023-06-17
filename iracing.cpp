@@ -489,7 +489,7 @@ ConnectionStatus ir_tick()
             sscanf( car.licenseColStr.c_str(), "0x%x", &licColHex );
             car.licenseCol.r = float((licColHex >> 16) & 0xff) / 255.f;
             car.licenseCol.g = float((licColHex >>  8) & 0xff) / 255.f;
-            car.licenseCol.b = float((licColHex >>  0) & 0xff) / 255.f;
+            car.licenseCol.b = float((licColHex >>  0) & 0xff) / 255.f; 
             car.licenseCol.a = 1;
 
             sprintf(path, "DriverInfo:Drivers:CarIdx:{%d}CarClassColor:", carIdx);
@@ -527,7 +527,12 @@ ConnectionStatus ir_tick()
             sprintf( path, "QualifyResultsInfo:Results:Position:{%d}CarIdx:", pos );
             int carIdx = -1;
             if( parseYamlInt( sessionYaml, path, &carIdx ) ) {
-                ir_session.cars[carIdx].qualy.position = pos + 1;
+
+                sprintf(path, "QualifyResultsInfo:Results:Position:{%d}ClassPosition:", pos);
+
+                int realPos = -1;
+                parseYamlInt(sessionYaml, path, &realPos);
+                ir_session.cars[carIdx].qualy.position = realPos + 1;
 
                 sprintf( path, "QualifyResultsInfo:Results:Position:{%d}FastestTime:", pos );
                 parseYamlFloat( sessionYaml, path, &ir_session.cars[carIdx].qualy.fastestTime );
@@ -558,7 +563,11 @@ ConnectionStatus ir_tick()
                 if( parseYamlInt( sessionYaml, path, &carIdx ) )
                 {
                     if (sessionNameStr == "PRACTICE") {
-                        ir_session.cars[carIdx].practice.position = pos;
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}ClassPosition:", session, pos);
+
+                        int realPos = -1;
+                        parseYamlInt(sessionYaml, path, &realPos);
+                        ir_session.cars[carIdx].practice.position = realPos + 1;
 
                         sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].practice.lastTime);
@@ -567,7 +576,11 @@ ConnectionStatus ir_tick()
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].practice.fastestTime);
                     }     
                     else if (sessionNameStr == "QUALIFY") {
-                        ir_session.cars[carIdx].qualy.position = pos;
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}ClassPosition:", session, pos);
+
+                        int realPos = -1;
+                        parseYamlInt(sessionYaml, path, &realPos);
+                        ir_session.cars[carIdx].qualy.position = realPos + 1;
 
                         sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].qualy.lastTime);
@@ -576,7 +589,11 @@ ConnectionStatus ir_tick()
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].qualy.fastestTime);
                     } 
                     else if (sessionNameStr == "RACE") {
-                        ir_session.cars[carIdx].race.position = pos;
+                        sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}ClassPosition:", session, pos);
+
+                        int realPos = -1;
+                        parseYamlInt(sessionYaml, path, &realPos);
+                        ir_session.cars[carIdx].race.position = realPos + 1;
 
                         sprintf(path, "SessionInfo:Sessions:SessionNum:{%d}ResultsPositions:Position:{%d}LastTime:", session, pos);
                         parseYamlFloat(sessionYaml, path, &ir_session.cars[carIdx].race.lastTime);
@@ -667,7 +684,7 @@ float ir_estimateLaptime()
 int ir_getPosition( int carIdx )
 {
     // Try the different sources we have for position data, in descending order of importance
-    int pos = ir_CarIdxPosition.getInt(carIdx);
+    int pos = ir_CarIdxClassPosition.getInt(carIdx);
     if( pos > 0 )
         return pos;
 
@@ -689,7 +706,7 @@ int ir_getPosition( int carIdx )
 int ir_getPositionsChanged(int carIdx)
 {
 
-    int posAct = ir_CarIdxPosition.getInt(carIdx);
+    int posAct = ir_CarIdxClassPosition.getInt(carIdx);
     int posQualy = ir_session.cars[carIdx].qualy.position;
 
     if (posQualy > 0 && posAct > 0)
