@@ -32,6 +32,8 @@ SOFTWARE.
 
 #define IR_MAX_CARS 64
 
+using namespace std;
+
 enum class ConnectionStatus
 {
     UNKNOWN = 0,
@@ -59,17 +61,19 @@ struct SessionPosTimes
 
 struct Car
 {    
-    std::string     userName;
-    std::string     teamName;
+    string          userName;
+    string          teamName;
     int             carNumber = 0;
-    std::string     carNumberStr;
-    std::string     licenseStr;
+    string          carNumberStr;
+    string          carName;
+    string          licenseStr;
     char            licenseChar = 'R';
     float           licenseSR = 0;
-    std::string     licenseColStr;
+    string          licenseColStr;
     float4          licenseCol = float4(0,0,0,1);
-    std::string     classColStr;
+    string          classColStr;
     float4          classCol = float4(0, 0, 0, 1);
+    int             classId = 0;
     int             irating = 0;
     int             isSelf = 0;
     int             isPaceCar = 0;
@@ -88,6 +92,7 @@ struct Session
 {
     SessionType     sessionType = SessionType::UNKNOWN;
     Car             cars[IR_MAX_CARS];
+    int             numCarClasses = -1;
     int             driverCarIdx = -1;
     int             sof = 0;
     int             subsessionId = 0;
@@ -427,6 +432,9 @@ int ir_getLapsRemaining();
 
 // Get session time remaining
 void ir_getSessionTimeRemaining(int& hours, int& mins, int& secs);
+
+// Get car class id
+int ir_getClassId(int carIdx);
 
 // Print all the variables the sim supports.
 void ir_printVariables();

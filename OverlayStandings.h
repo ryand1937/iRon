@@ -29,6 +29,8 @@ SOFTWARE.
 #include "Config.h"
 #include "OverlayDebug.h"
 
+using namespace std;
+
 class OverlayStandings : public Overlay
 {
 public:
@@ -38,9 +40,9 @@ public:
     const int defaultNumAheadDrivers = 5;
     const int defaultNumBehindDrivers = 5;
 
-    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, PIT, DELTA, L5, POSITIONS_GAINED };
+    enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, CAR_BRAND, PIT, DELTA, L5, POSITIONS_GAINED };
 
-    OverlayStandings()
+    OverlayStandings(map<string, IWICFormatConverter*> mapa)
         : Overlay("OverlayStandings")
     {
         avgL5Times.reserve(IR_MAX_CARS);
@@ -53,6 +55,8 @@ public:
                 avgL5Times[i].push_back(0.0);
             }
         }
+
+        this->mapa = mapa;
     }
 
 protected:
@@ -71,7 +75,7 @@ protected:
     {
         m_text.reset( m_dwriteFactory.Get() );
 
-        const std::string font = g_cfg.getString( m_name, "font", "Microsoft YaHei UI" );
+        const string font = g_cfg.getString( m_name, "font", "Microsoft YaHei UI" );
         const float fontSize = g_cfg.getFloat( m_name, "font_size", DefaultFontSize );
         const int fontWeight = g_cfg.getInt( m_name, "font_weight", 500 );
         HRCHECK(m_dwriteFactory->CreateTextFormat( toWide(font).c_str(), NULL, (DWRITE_FONT_WEIGHT)fontWeight, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, fontSize, L"en-us", &m_textFormat ));
@@ -90,6 +94,10 @@ protected:
         m_columns.add( (int)Columns::PIT,        computeTextExtent( L"P.Age", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
         m_columns.add( (int)Columns::LICENSE,    computeTextExtent( L"A 4.44", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
         m_columns.add( (int)Columns::IRATING,    computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/6 );
+
+        if (g_cfg.getBool(m_name, "show_car_brand", true))
+            m_columns.add( (int)Columns::CAR_BRAND,  30, fontSize / 2);
+
         m_columns.add( (int)Columns::POSITIONS_GAINED, computeTextExtent(L"↑6", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2);
         m_columns.add( (int)Columns::GAP,        computeTextExtent(L"9999.9", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2 );
         m_columns.add( (int)Columns::BEST,       computeTextExtent( L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
@@ -108,6 +116,7 @@ protected:
     {
         struct CarInfo {
             int     carIdx = 0;
+            int     classIdx = 0;
             int     lapCount = 0;
             float   pctAroundLap = 0;
             int     lapGap = 0;
@@ -121,34 +130,49 @@ protected:
             int     pitAge = 0;
             int     positionsChanged = 0;
         };
-        std::vector<CarInfo> carInfo;
+
+        struct classBestLap {
+            int     carIdx = -1;
+            float   best = FLT_MAX;
+        };
+
+        vector<CarInfo> carInfo;
         carInfo.reserve( IR_MAX_CARS );
 
         // Init array
-        float fastestLapTime = FLT_MAX;
-        int fastestLapIdx = -1;
+        map<int, classBestLap> bestLapClass;
         int selfPosition = ir_getPosition(ir_session.driverCarIdx);
+        boolean hasPacecar = false;
 
         for( int i=0; i<IR_MAX_CARS; ++i )
         {
             const Car& car = ir_session.cars[i];
 
-            if( car.isPaceCar || car.isSpectator || car.userName.empty() )
+            if (car.isPaceCar || car.isSpectator || car.userName.empty()) {
+                hasPacecar = true;
                 continue;
+            }
 
             CarInfo ci;
             ci.carIdx       = i;
-            ci.lapCount     = std::max( ir_CarIdxLap.getInt(i), ir_CarIdxLapCompleted.getInt(i) );
+            ci.lapCount     = max( ir_CarIdxLap.getInt(i), ir_CarIdxLapCompleted.getInt(i) );
             ci.position     = ir_getPosition(i);
             ci.pctAroundLap = ir_CarIdxLapDistPct.getFloat(i);
             ci.gap          = ir_session.sessionType!=SessionType::RACE ? 0 : -ir_CarIdxF2Time.getFloat(i);
             ci.last         = ir_CarIdxLastLapTime.getFloat(i);
             ci.pitAge       = ir_CarIdxLap.getInt(i) - car.lastLapInPits;
             ci.positionsChanged = ir_getPositionsChanged(i);
+            ci.classIdx     = ir_getClassId(ci.carIdx);
 
             ci.best         = ir_CarIdxBestLapTime.getFloat(i);
-            if (ir_session.sessionType == SessionType::RACE && ir_SessionState.getInt() <= irsdk_StateWarmup || ir_session.sessionType == SessionType::QUALIFY && ci.best <= 0)
+            if (ir_session.sessionType == SessionType::RACE && ir_SessionState.getInt() <= irsdk_StateWarmup || ir_session.sessionType == SessionType::QUALIFY && ci.best <= 0) {
                 ci.best = car.qualy.fastestTime;
+                for (int i = 0; i < IR_MAX_CARS; ++i) {
+                    for (int j = 0; j < 5; ++j) {
+                        avgL5Times[i][j] = 0.0;
+                    }
+                }
+            }
                 
             if (ir_CarIdxTrackSurface.getInt(ci.carIdx) == irsdk_NotInWorld) {
                 switch (ir_session.sessionType) {
@@ -166,15 +190,19 @@ protected:
                         break;
                     default:
                         break;
-                }
-                
+                }               
             }
 
-            if( ci.best > 0 && ci.best < fastestLapTime ) {
-                fastestLapTime = ci.best;
-                fastestLapIdx = ci.carIdx - 1;
+            if (!bestLapClass.contains(ci.classIdx)) {
+                classBestLap classBest;
+                bestLapClass.insert_or_assign(ci.classIdx, classBest);
             }
 
+            if( ci.best > 0 && ci.best < bestLapClass[ci.classIdx].best) {
+                bestLapClass[ci.classIdx].best = ci.best;
+                bestLapClass[ci.classIdx].carIdx = hasPacecar ? ci.carIdx - 1 : ci.carIdx;               
+            }
+            
             if(ci.lapCount > 0)
                 avgL5Times[ci.carIdx][ci.lapCount % 5] = ci.last;
 
@@ -192,29 +220,39 @@ protected:
             carInfo.push_back(ci);
         }
 
-        if( fastestLapIdx >= 0 )
-            carInfo[fastestLapIdx].hasFastestLap = true;
+        for (const auto& pair : bestLapClass)
+        {
+            if (pair.second.best > 0 && pair.second.carIdx >= 0)
+                carInfo[pair.second.carIdx].hasFastestLap = true;
+                string str = formatLaptime(pair.second.best);
+        }
 
-        const CarInfo ciLeader = carInfo[0];
-        const CarInfo ciSelf = carInfo[ir_PlayerCarIdx.getInt() > 0 ? ir_PlayerCarIdx.getInt() - 1 : 0];
+        const CarInfo ciSelf = carInfo[ir_PlayerCarIdx.getInt() > 0 ? hasPacecar ? ir_PlayerCarIdx.getInt() - 1 : ir_PlayerCarIdx.getInt() : 0];
         
         // Sort by position
-        std::sort( carInfo.begin(), carInfo.end(),
+        sort( carInfo.begin(), carInfo.end(),
             []( const CarInfo& a, const CarInfo& b ) {
                 const int ap = a.position<=0 ? INT_MAX : a.position;
                 const int bp = b.position<=0 ? INT_MAX : b.position;
                 return ap < bp;
             } );
 
+        map<int, int> classLider;
+
+        for (const CarInfo& car : carInfo) {
+            if (car.position > 1) break;
+            classLider.insert_or_assign(car.classIdx, car.carIdx);
+        }
+
         // Compute lap gap to leader and compute delta
         for( int i=0; i<(int)carInfo.size(); ++i )
         {
             CarInfo&       ci       = carInfo[i];
-            ci.lapGap = ir_getLapDeltaToLeader( ci.carIdx, ciLeader.carIdx );
+            ci.lapGap = ir_getLapDeltaToLeader( ci.carIdx, classLider[ci.classIdx]);
             ci.delta = ir_getDeltaTime( ci.carIdx, ir_session.driverCarIdx );
 
             if (ir_session.sessionType != SessionType::RACE) {
-                ci.gap = ir_CarIdxF2Time.getFloat(ci.carIdx) - ir_CarIdxF2Time.getFloat(ciLeader.carIdx);
+                ci.gap = ir_CarIdxF2Time.getFloat(ci.carIdx) - ir_CarIdxF2Time.getFloat(classLider[ci.classIdx]);
                 ci.gap = ci.gap < 0 ? 0 : ci.gap;
             }
         }
@@ -250,7 +288,7 @@ protected:
 
         const ColumnLayout::Column* clm = nullptr;
         wchar_t s[512];
-        std::string str;
+        string str;
         D2D1_RECT_F r = {};
         D2D1_ROUNDED_RECT rr = {};
 
@@ -281,6 +319,11 @@ protected:
         clm = m_columns.get( (int)Columns::IRATING );
         swprintf( s, _countof(s), L"IR" );
         m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
+
+        if (clm = m_columns.get((int)Columns::CAR_BRAND)) {
+            swprintf(s, _countof(s), L"  ");
+            m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+        }
 
         clm = m_columns.get((int)Columns::POSITIONS_GAINED);
         swprintf(s, _countof(s), L" ");
@@ -433,6 +476,26 @@ protected:
                 m_text.render( m_renderTarget.Get(), s, m_textFormatSmall.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
             }
 
+            // Car brand
+            if (clm = m_columns.get((int)Columns::CAR_BRAND))
+            {
+                string carNameLowerCase = toLowerCase(car.carName);
+
+                IWICFormatConverter* valor = findAndDrawCar(carNameLowerCase, mapa);    //Valor por defecto si no se encuentra el coche en el mapa
+
+                if (valor != nullptr) {
+                    ID2D1Bitmap* pBitmap = NULL;
+                    m_renderTarget->CreateBitmapFromWicBitmap(valor, nullptr, &pBitmap);
+                    D2D1_RECT_F r = { xoff + clm->textL, y - lineHeight / 2, xoff + clm->textR, y + lineHeight / 2 };
+                    m_renderTarget->DrawBitmap(pBitmap, r);
+                    pBitmap->Release();
+                }
+                else {
+                    std::cout << "No se encontró el coche '" << car.carName << "' en el mapa." << std::endl;
+                }
+            
+            }
+
             // Positions gained
             {
                 clm = m_columns.get((int)Columns::POSITIONS_GAINED);
@@ -453,7 +516,7 @@ protected:
                     m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
 
                     m_brush->SetColor(textCol);
-                    swprintf(s, _countof(s), L"%d", std::abs(ci.positionsChanged));
+                    swprintf(s, _countof(s), L"%d", abs(ci.positionsChanged));
 
                     m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, 17 + xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
                 }
@@ -497,7 +560,7 @@ protected:
             {
                 if (ci.delta)
                 {
-                    swprintf(s, _countof(s), L"%.01f", std::abs(ci.delta));
+                    swprintf(s, _countof(s), L"%.01f", abs(ci.delta));
                     if (ci.delta > 0)
                         m_brush->SetColor(deltaPosCol);
                     else
@@ -537,7 +600,7 @@ protected:
             int hours, mins, secs;
 
             ir_getSessionTimeRemaining(hours, mins, secs);
-            const int laps = std::max(ir_CarIdxLap.getInt(ir_session.driverCarIdx), ir_CarIdxLapCompleted.getInt(ir_session.driverCarIdx));
+            const int laps = max(ir_CarIdxLap.getInt(ir_session.driverCarIdx), ir_CarIdxLapCompleted.getInt(ir_session.driverCarIdx));
             const int remainingLaps = ir_getLapsRemaining();
             int totalLaps = remainingLaps;
             
@@ -567,5 +630,6 @@ protected:
 
     ColumnLayout m_columns;
     TextCache    m_text;
-    std::vector<std::vector<float>> avgL5Times;
+    vector<vector<float>> avgL5Times;
+    map<string, IWICFormatConverter*> mapa;
 };

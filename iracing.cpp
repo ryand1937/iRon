@@ -400,6 +400,9 @@ ConnectionStatus ir_tick()
         sprintf( path, "WeekendInfo:WeekendOptions:IsFixedSetup:" );
         parseYamlInt( sessionYaml, path, &ir_session.isFixedSetup );
 
+        sprintf(path, "WeekendInfo:WeekendOptions:NumCarClasses:");
+        parseYamlInt(sessionYaml, path, &ir_session.numCarClasses);
+
         // Current session type
         std::string sessionNameStr;
         sprintf( path, "SessionInfo:Sessions:SessionNum:{%d}SessionName:", ir_SessionNum.getInt() );
@@ -501,6 +504,9 @@ ConnectionStatus ir_tick()
             car.classCol.b = float((classColHex >> 0) & 0xff) / 255.f;
             car.classCol.a = 1;
 
+            sprintf(path, "DriverInfo:Drivers:CarIdx:{%d}CarClassID:", carIdx);
+            parseYamlInt(sessionYaml, path, &car.classId);
+
             sprintf( path, "DriverInfo:Drivers:CarIdx:{%d}IRating:", carIdx );
             parseYamlInt( sessionYaml, path, &car.irating );
 
@@ -514,7 +520,10 @@ ConnectionStatus ir_tick()
             parseYamlInt( sessionYaml, path, &car.incidentCount );
 
             sprintf( path, "DriverInfo:Drivers:CarIdx:{%d}CarClassEstLapTime:", carIdx );
-            parseYamlFloat( sessionYaml, path, &car.carClassEstLapTime );
+            parseYamlFloat( sessionYaml, path, &car.carClassEstLapTime ); 
+            
+            sprintf(path, "DriverInfo:Drivers:CarIdx:{%d}CarScreenName:", carIdx);
+            parseYamlStr(sessionYaml, path, car.carName);
 
             car.qualy.position = 0;
             car.practice.position = 0;
@@ -771,6 +780,19 @@ void ir_getSessionTimeRemaining(int& hours, int& mins, int& secs) {
     hours = int(sessionTime / 3600.0);
     mins = int(sessionTime / 60.0) % 60;
     secs = (int)fmod(sessionTime, 60.0);
+}
+
+int ir_getClassId(int carIdx)
+{
+    int id = ir_CarIdxClass.getInt(carIdx);
+    if (id > 0)
+        return id;
+
+    id = ir_session.cars[carIdx].classId;
+    if (id > 0)
+        return id;
+
+    return 0;
 }
 
 void ir_printVariables()
