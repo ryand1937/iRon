@@ -89,7 +89,7 @@ void OverlayDebug::onEnable()
 
 void OverlayDebug::onConfigChanged()
 {
-    HRCHECK(m_dwriteFactory->CreateTextFormat( L"Consolas", NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"en-us", &m_textFormat ));
+    HRCHECK(m_dwriteFactory->CreateTextFormat( L"Console", NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 15, L"en-us", &m_textFormat ));
     m_textFormat->SetParagraphAlignment( DWRITE_PARAGRAPH_ALIGNMENT_CENTER );
     m_textFormat->SetWordWrapping( DWRITE_WORD_WRAPPING_NO_WRAP );
 }

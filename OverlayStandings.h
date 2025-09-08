@@ -40,6 +40,7 @@ public:
     const int defaultNumAheadDrivers = 5;
     const int defaultNumBehindDrivers = 5;
 
+    vector<string> noIconCarBrands;
     enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, CAR_BRAND, PIT, DELTA, L5, POSITIONS_GAINED };
 
     OverlayStandings(map<string, IWICFormatConverter*> mapa)
@@ -63,12 +64,14 @@ protected:
 
     virtual void onEnable()
     {
+        noIconCarBrands.clear();
         onConfigChanged();  // trigger font load
     }
 
     virtual void onDisable()
     {
         m_text.reset();
+        noIconCarBrands.clear();
     }
 
     virtual void onConfigChanged()
@@ -491,7 +494,25 @@ protected:
                     pBitmap->Release();
                 }
                 else {
-                    std::cout << "No se encontró el coche '" << car.carName << "' en el mapa." << std::endl;
+                    
+                    //Only print "Car info not found" once for each missing car then use a generic Icon.
+                    if (!(std::find(noIconCarBrands.begin(), noIconCarBrands.end(), carNameLowerCase) != noIconCarBrands.end()))
+                    {
+                        noIconCarBrands.push_back(carNameLowerCase);
+                        std::cout << "Car Icon for '" << carNameLowerCase << "' not Found\n";
+                    }
+
+                    string carNameLowerCase = "unknown";
+                    IWICFormatConverter* valor = findAndDrawCar(carNameLowerCase, mapa);    //Default value if the car is not found on the map
+
+                    if (valor != nullptr) {
+                        ID2D1Bitmap* pBitmap = NULL;
+                        m_renderTarget->CreateBitmapFromWicBitmap(valor, nullptr, &pBitmap);
+                        D2D1_RECT_F r = { xoff + clm->textL, y - lineHeight / 2, xoff + clm->textR, y + lineHeight / 2 };
+                        m_renderTarget->DrawBitmap(pBitmap, r);
+                        pBitmap->Release();
+                    }
+                    //std::cout << "The icon for  '" << car.carName << "' was not found." << std::endl;
                 }
             
             }

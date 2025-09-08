@@ -164,7 +164,7 @@ static void LoadCarIcons(map<string, IWICFormatConverter*>& mapa) {
         }
     }
     else {
-        cout << "Cars icons doesnt found" << endl;
+        cout << "Cars icons not found" << endl;
     }
 }
 
