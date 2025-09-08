@@ -27,13 +27,16 @@ SOFTWARE.
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string>
 #include <vector>
+#include <algorithm>
+#include <string>   
+#include <map>        
 #include <windows.h>
 #include <d2d1_3.h>
 #include <dwrite.h>
 #include <unordered_map>
 #include <ctype.h>
+#include <wincodec.h>
 
 #define HRCHECK( x_ ) do{ \
     HRESULT hr_ = x_; \
@@ -435,3 +438,34 @@ inline bool parseHotkey( const std::string& desc, UINT* mod, UINT* vk )
 
     return false;
 }
+
+
+inline std::string toLowerCase(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+        });
+    return str;
+};
+
+
+inline IWICFormatConverter* findAndDrawCar(const std::string& carName, std::map<std::string, IWICFormatConverter*>& mapa)
+{
+    std::string cocheLowerCase = toLowerCase(carName);
+
+    IWICFormatConverter* valor = nullptr; // Valor por defecto si no se encuentra el coche en el mapa
+
+    // Buscar el coche en el mapa
+    for (const auto& pair : mapa)
+    {
+        std::string keyLowerCase = toLowerCase(pair.first);
+        if (cocheLowerCase.find(keyLowerCase) != std::string::npos)
+        {
+            valor = pair.second;
+            break;
+        }
+    }
+
+    return valor;
+}
+
+

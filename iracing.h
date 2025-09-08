@@ -32,6 +32,8 @@ SOFTWARE.
 
 #define IR_MAX_CARS 64
 
+using namespace std;
+
 enum class ConnectionStatus
 {
     UNKNOWN = 0,
@@ -50,16 +52,28 @@ enum class SessionType
 };
 static const char* const SessionTypeStr[] = {"UNKNOWN","PRACTICE","QUALIFY","RACE"};
 
+struct SessionPosTimes
+{
+    float           lastTime = 0;
+    float           fastestTime = 0;
+    int             position = 0;
+};
+
 struct Car
 {    
-    std::string     userName;
+    string          userName;
+    string          teamName;
     int             carNumber = 0;
-    std::string     carNumberStr;
-    std::string     licenseStr;
+    string          carNumberStr;
+    string          carName;
+    string          licenseStr;
     char            licenseChar = 'R';
     float           licenseSR = 0;
-    std::string     licenseColStr;
+    string          licenseColStr;
     float4          licenseCol = float4(0,0,0,1);
+    string          classColStr;
+    float4          classCol = float4(0, 0, 0, 1);
+    int             classId = 0;
     int             irating = 0;
     int             isSelf = 0;
     int             isPaceCar = 0;
@@ -68,17 +82,17 @@ struct Car
     int             isFlagged = 0;
     int             incidentCount = 0;
     float           carClassEstLapTime = 0;
-    int             practicePosition = 0;
-    int             qualPosition = 0;
-    float           qualTime = 0;
-    int             racePosition = 0;
     int             lastLapInPits = 0;
+    SessionPosTimes practice;
+    SessionPosTimes qualy;
+    SessionPosTimes race;
 };
 
 struct Session
 {
     SessionType     sessionType = SessionType::UNKNOWN;
     Car             cars[IR_MAX_CARS];
+    int             numCarClasses = -1;
     int             driverCarIdx = -1;
     int             sof = 0;
     int             subsessionId = 0;
@@ -404,8 +418,23 @@ float ir_estimateLaptime();
 // Get the best known position, from the latest session we can find.
 int ir_getPosition( int carIdx );
 
-// Get lap delta to P0 car if available.
+// Get gained positions.
+int ir_getPositionsChanged(int carIdx);
+
+// Get lap gap to P0 car if available.
 int ir_getLapDeltaToLeader( int carIdx, int ldrIdx );
+
+// Get lap delta if available.
+float ir_getDeltaTime(int carIdx, int selfIdx);
+
+// Get laps remaining for sesion
+int ir_getLapsRemaining();
+
+// Get session time remaining
+void ir_getSessionTimeRemaining(int& hours, int& mins, int& secs);
+
+// Get car class id
+int ir_getClassId(int carIdx);
 
 // Print all the variables the sim supports.
 void ir_printVariables();

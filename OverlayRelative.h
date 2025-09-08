@@ -42,7 +42,7 @@ class OverlayRelative : public Overlay
 
     protected:
 
-        enum class Columns { POSITION, CAR_NUMBER, NAME, DELTA, LICENSE, SAFETY_RATING, IRATING, PIT };
+        enum class Columns { POSITION, CAR_NUMBER, NAME, DELTA, LICENSE, SAFETY_RATING, IRATING, PIT, LAST };
 
         virtual void onEnable()
         {
@@ -74,7 +74,6 @@ class OverlayRelative : public Overlay
             m_columns.add( (int)Columns::POSITION,   computeTextExtent( L"P99", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
             m_columns.add( (int)Columns::CAR_NUMBER, computeTextExtent( L"#999", m_dwriteFactory.Get(), m_textFormat.Get() ).x, fontSize/2 );
             m_columns.add( (int)Columns::NAME,       0, fontSize/2 );
-            m_columns.add( (int)Columns::DELTA,      computeTextExtent( L"+99L  -99.9", m_dwriteFactory.Get(), m_textFormat.Get() ).x, 1, fontSize/2 );
 
             if( g_cfg.getBool(m_name,"show_pit_age",true) )
                 m_columns.add( (int)Columns::PIT,           computeTextExtent( L"999", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/4 );
@@ -84,6 +83,10 @@ class OverlayRelative : public Overlay
                 m_columns.add( (int)Columns::SAFETY_RATING, computeTextExtent( L"A 4.44", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/8 );
             if( g_cfg.getBool(m_name,"show_irating",true) )
                 m_columns.add( (int)Columns::IRATING,       computeTextExtent( L"999.9k", m_dwriteFactory.Get(), m_textFormatSmall.Get() ).x, fontSize/8 );
+
+            m_columns.add((int)Columns::LAST, computeTextExtent(L"999.99.999", m_dwriteFactory.Get(), m_textFormat.Get()).x, fontSize / 2);
+
+            m_columns.add((int)Columns::DELTA, computeTextExtent(L"+99L  -99.9", m_dwriteFactory.Get(), m_textFormat.Get()).x, 1, fontSize / 2);
         }
 
         virtual void onUpdate()
@@ -93,6 +96,7 @@ class OverlayRelative : public Overlay
                 float   delta = 0;
                 int     lapDelta = 0;
                 int     pitAge = 0;
+                float   last = 0;
             };
             std::vector<CarInfo> relatives;
             relatives.reserve( IR_MAX_CARS );
@@ -147,6 +151,7 @@ class OverlayRelative : public Overlay
                     ci.delta = delta;
                     ci.lapDelta = lapDelta;
                     ci.pitAge = ir_CarIdxLap.getInt(i) - car.lastLapInPits;
+                    ci.last = ir_CarIdxLastLapTime.getFloat(i);
                     relatives.push_back( ci );
                 }
             }
@@ -232,6 +237,7 @@ class OverlayRelative : public Overlay
                     col.a *= 0.5f;
                 
                 wchar_t s[512];
+                std::string str;
                 D2D1_RECT_F r = {};
                 D2D1_ROUNDED_RECT rr = {};
                 const ColumnLayout::Column* clm = nullptr;
@@ -254,7 +260,9 @@ class OverlayRelative : public Overlay
                     rr.rect = { r.left-2, r.top+1, r.right+2, r.bottom-1 };
                     rr.radiusX = 3;
                     rr.radiusY = 3;
-                    m_brush->SetColor( car.isSelf ? selfCol : (car.isBuddy ? buddyCol : (car.isFlagged?flaggedCol:carNumberBgCol)) );
+                    float4 color = car.classCol;
+                    color.a = licenseBgAlpha;
+                    m_brush->SetColor( car.isSelf ? color : (car.isBuddy ? buddyCol : (car.isFlagged?flaggedCol: color)) );
                     m_renderTarget->FillRoundedRectangle( &rr, m_brush.Get() );
                     m_brush->SetColor( carNumberTextCol );
                     m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
@@ -266,17 +274,6 @@ class OverlayRelative : public Overlay
                     swprintf( s, _countof(s), L"%S", car.userName.c_str() );
                     m_brush->SetColor( col );
                     m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_LEADING );
-                }
-
-                // Delta
-                {
-                    clm = m_columns.get( (int)Columns::DELTA );
-                    if( ci.lapDelta )
-                        swprintf( s, _countof(s), L"%+dL  %.1f", ci.lapDelta, ci.delta );
-                    else
-                        swprintf( s, _countof(s), L"%.1f", ci.delta );
-                    m_brush->SetColor( col );
-                    m_text.render( m_renderTarget.Get(), s, m_textFormat.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING );
                 }
 
                 // Pit age
@@ -342,7 +339,49 @@ class OverlayRelative : public Overlay
                     m_brush->SetColor( iratingTextCol );
                     m_text.render( m_renderTarget.Get(), s, m_textFormatSmall.Get(), xoff+clm->textL, xoff+clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER );
                 }
+
+                // Last
+                {
+                    clm = m_columns.get((int)Columns::LAST);
+                    str.clear();
+                    if (ci.last > 0)
+                        str = formatLaptime(ci.last);
+                    m_brush->SetColor(col);
+                    m_text.render(m_renderTarget.Get(), toWide(str).c_str(), m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+                }
+
+                // Delta
+                {
+                    clm = m_columns.get((int)Columns::DELTA);
+                    swprintf(s, _countof(s), L"%.1f", ci.delta);
+                    m_brush->SetColor(col);
+                    m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff + clm->textL, xoff + clm->textR, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_TRAILING);
+                }
             }
+
+           /* // Footer
+            {
+                float trackTemp = ir_TrackTempCrew.getFloat();
+                char  tempUnit = 'C';
+
+                double sessionTime = ir_SessionTimeRemain.getDouble();
+                int laps = std::max(ir_CarIdxLap.getInt(ir_session.driverCarIdx), ir_CarIdxLapCompleted.getInt(ir_session.driverCarIdx));
+
+                const bool   sessionIsTimeLimited = ir_SessionLapsTotal.getInt() == 32767 && ir_SessionTimeRemain.getDouble() < 48.0 * 3600.0;  // most robust way I could find to figure out whether this is a time-limited session (info in session string is often misleading)
+                const int    remainingLaps = sessionIsTimeLimited ? int(0.5 + sessionTime / ir_estimateLaptime()) : (ir_SessionLapsRemainEx.getInt() != 32767 ? ir_SessionLapsRemainEx.getInt() : -1);
+
+                const int    hours = int(sessionTime / 3600.0);
+                const int    mins = int(sessionTime / 60.0) % 60;
+                const int    secs = (int)fmod(sessionTime, 60.0);
+
+                m_brush->SetColor(float4(1, 1, 1, 0.4f));
+                m_renderTarget->DrawLine(float2(0, ybottom), float2((float)m_width, ybottom), m_brush.Get());
+                swprintf(s, _countof(s), L"SoF: %d      Track Temp: %.1f°%c      Session end: %d:%02d:%02d       Laps: %d/%d", ir_session.sof, trackTemp, tempUnit, hours, mins, secs, laps, remainingLaps);
+                y = m_height - (m_height - ybottom) / 2;
+                m_brush->SetColor(headerCol);
+                m_text.render(m_renderTarget.Get(), s, m_textFormat.Get(), xoff, (float)m_width - 2 * xoff, y, m_brush.Get(), DWRITE_TEXT_ALIGNMENT_CENTER);
+            }
+            */
 
             // Minimap
             if( minimapEnabled )
@@ -415,6 +454,12 @@ class OverlayRelative : public Overlay
                 }
             }
             m_renderTarget->EndDraw();
+        }
+
+
+        virtual bool canEnableWhileNotDriving() const
+        {
+            return true;
         }
 
     protected:
