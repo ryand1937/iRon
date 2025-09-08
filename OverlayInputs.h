@@ -49,11 +49,16 @@ class OverlayInputs : public Overlay
             m_throttleVtx.resize( m_width );
             m_brakeVtx.resize( m_width );
             m_steerVtx.resize( m_width );
+            m_absActiveVtx.resize(m_width);
+
+
             for( int i=0; i<m_width; ++i )
             {
                 m_throttleVtx[i].x = float(i);
                 m_brakeVtx[i].x = float(i);
                 m_steerVtx[i].x = float(i);
+                m_absActiveVtx[i].x = float(i);
+                
             }
         }
 
@@ -69,6 +74,8 @@ class OverlayInputs : public Overlay
                 m_brakeVtx.resize( 1 );
             if( m_steerVtx.empty() )
                 m_steerVtx.resize( 1 );
+            if (m_absActiveVtx.empty())
+                m_absActiveVtx.resize(1);
 
             // Advance input vertices
             {
@@ -79,6 +86,11 @@ class OverlayInputs : public Overlay
                 for( int i=0; i<(int)m_brakeVtx.size()-1; ++i )
                     m_brakeVtx[i].y = m_brakeVtx[i+1].y;
                 m_brakeVtx[(int)m_brakeVtx.size()-1].y = ir_Brake.getFloat();
+
+
+                for(int i=0; i < (int)m_absActiveVtx.size() - 1; ++i)
+                    m_absActiveVtx[i].y = m_absActiveVtx[i + 1].y;
+                m_absActiveVtx[(int)m_absActiveVtx.size() - 1].y = ir_BrakeABSactive.getFloat();
 
                 for( int i=0; i<(int)m_steerVtx.size()-1; ++i )
                     m_steerVtx[i].y = m_steerVtx[i+1].y;
@@ -131,8 +143,10 @@ class OverlayInputs : public Overlay
             m_d2dFactory->CreatePathGeometry( &brakeLinePath );
             brakeLinePath->Open( &brakeLineSink );
             brakeLineSink->BeginFigure( vtx2coord(m_brakeVtx[0]), D2D1_FIGURE_BEGIN_HOLLOW );
-            for( int i=1; i<(int)m_brakeVtx.size(); ++i )
-                brakeLineSink->AddLine( vtx2coord(m_brakeVtx[i]) );
+            for (int i = 1; i < (int)m_brakeVtx.size(); ++i)
+            {
+                brakeLineSink->AddLine(vtx2coord(m_brakeVtx[i]));
+            }
             brakeLineSink->EndFigure( D2D1_FIGURE_END_OPEN );
             brakeLineSink->Close();
 
@@ -154,8 +168,26 @@ class OverlayInputs : public Overlay
             m_renderTarget->FillGeometry( brakeFillPath.Get(), m_brush.Get() );
             m_brush->SetColor( g_cfg.getFloat4( m_name, "throttle_col", float4(0.38f,0.91f,0.31f,0.8f) ) );
             m_renderTarget->DrawGeometry( throttleLinePath.Get(), m_brush.Get(), thickness );
-            m_brush->SetColor( g_cfg.getFloat4( m_name, "brake_col", float4(0.93f,0.03f,0.13f,0.8f) ) );
-            m_renderTarget->DrawGeometry( brakeLinePath.Get(), m_brush.Get(), thickness );
+
+            // Brake line yellow when ABS is active
+            for (int i = 1; i < (int)m_brakeVtx.size(); ++i)
+            {
+                float2 p0 = vtx2coord(m_brakeVtx[i - 1]);
+                float2 p1 = vtx2coord(m_brakeVtx[i]);
+
+                if (m_absActiveVtx[i].y != 0)
+                    m_brush->SetColor(float4(1.0f, 1.0f, 0.0f, 1.0f)); // Yellow
+                else
+                    m_brush->SetColor(float4(0.93f, 0.03f, 0.13f, 0.8f)); // Red
+
+                m_renderTarget->DrawLine(p0, p1, m_brush.Get(), thickness);
+            }
+
+
+           // m_brush->SetColor( g_cfg.getFloat4( m_name, "brake_col", float4(0.93f,0.03f,0.13f,0.8f) ) );
+          //  m_brush->SetColor(g_cfg.getFloat4(m_name, "brakeABS_col", float4(0.93f, 0.99f, 0.03f, 0.99f)));
+            
+         //   m_renderTarget->DrawGeometry( brakeLinePath.Get(), m_brush.Get(), thickness );
             m_brush->SetColor( g_cfg.getFloat4( m_name, "steering_col", float4(1,1,1,0.3f) ) );
             m_renderTarget->DrawGeometry( steeringLinePath.Get(), m_brush.Get(), thickness );
             m_renderTarget->EndDraw();
@@ -166,4 +198,5 @@ class OverlayInputs : public Overlay
         std::vector<float2> m_throttleVtx;
         std::vector<float2> m_brakeVtx;
         std::vector<float2> m_steerVtx;
+        std::vector<float2> m_absActiveVtx;
 };

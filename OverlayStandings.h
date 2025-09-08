@@ -494,9 +494,14 @@ protected:
                     pBitmap->Release();
                 }
                 else {
-                    
+
+                    if (noIconCarBrands.empty())
+                    {
+                        noIconCarBrands.push_back(carNameLowerCase);
+                        std::cout << "Car Icon for '" << carNameLowerCase << "' not Found\n";
+                    }
                     //Only print "Car info not found" once for each missing car then use a generic Icon.
-                    if (!(std::find(noIconCarBrands.begin(), noIconCarBrands.end(), carNameLowerCase) != noIconCarBrands.end()))
+                    else if (!(std::find(noIconCarBrands.begin(), noIconCarBrands.end(), carNameLowerCase) != noIconCarBrands.end()))
                     {
                         noIconCarBrands.push_back(carNameLowerCase);
                         std::cout << "Car Icon for '" << carNameLowerCase << "' not Found\n";
