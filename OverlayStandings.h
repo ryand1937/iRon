@@ -40,6 +40,7 @@ public:
     const int defaultNumAheadDrivers = 5;
     const int defaultNumBehindDrivers = 5;
 
+    vector<string> foundIconCarBrands;
     vector<string> noIconCarBrands;
     enum class Columns { POSITION, CAR_NUMBER, NAME, GAP, BEST, LAST, LICENSE, IRATING, CAR_BRAND, PIT, DELTA, L5, POSITIONS_GAINED };
 
@@ -65,12 +66,14 @@ protected:
     virtual void onEnable()
     {
         noIconCarBrands.clear();
+        foundIconCarBrands.clear();
         onConfigChanged();  // trigger font load
     }
 
     virtual void onDisable()
     {
         m_text.reset();
+        foundIconCarBrands.clear();
         noIconCarBrands.clear();
     }
 
@@ -492,6 +495,12 @@ protected:
                     D2D1_RECT_F r = { xoff + clm->textL, y - lineHeight / 2, xoff + clm->textR, y + lineHeight / 2 };
                     m_renderTarget->DrawBitmap(pBitmap, r);
                     pBitmap->Release();
+                    //print the car brand to the console
+                    if (!(std::find(foundIconCarBrands.begin(), foundIconCarBrands.end(), carNameLowerCase) != foundIconCarBrands.end()))
+                    {
+                        std::cout<<"Icon found for "<< carNameLowerCase << "\n";
+                        foundIconCarBrands.push_back(carNameLowerCase);
+                    }
                 }
                 else {
 
