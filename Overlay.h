@@ -78,6 +78,7 @@ class Overlay
         int             m_ypos = 0;
         int             m_width = 0;
         int             m_height = 0;
+        
 
         Microsoft::WRL::ComPtr<ID3D11Device>            m_d3dDevice;
         Microsoft::WRL::ComPtr<IDXGISwapChain1>         m_swapChain;

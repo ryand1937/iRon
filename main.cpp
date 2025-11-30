@@ -207,7 +207,7 @@ int main()
     printf("    Toggle inputs overlay:        %s\n", g_cfg.getString("OverlayInputs","toggle_hotkey","").c_str() );
     printf("    Toggle relative overlay:      %s\n", g_cfg.getString("OverlayRelative","toggle_hotkey","").c_str() );
     printf("    Toggle cover overlay:         %s\n", g_cfg.getString("OverlayCover","toggle_hotkey","").c_str() );
-    printf("    Toggle cover Side Indicators: %s\n", g_cfg.getString("OverlayCarLeft", "toggle_hotkey", "").c_str());
+    printf("    Toggle Side Indicators:       %s\n", g_cfg.getString("OverlayCarLeft", "toggle_hotkey", "").c_str());
     printf("\niRon will generate a file called \'config.json\' in its current directory. This file\n"\
            "stores your settings. You can edit the file at any time, even while iRon is running,\n"\
            "to customize your overlays and hotkeys.\n\n");

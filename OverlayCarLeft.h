@@ -44,11 +44,6 @@ class OverlayCarLeft : public Overlay
         {
             return float2(80,80);
         }
-
-        virtual void onConfigChanged()
-        {
-
-        }
         virtual bool hasCustomBgColor()
         {
             return true;
@@ -63,14 +58,10 @@ class OverlayCarLeft : public Overlay
             m_isLeft = (val == 2 || val == 4);
 
             m_renderTarget->BeginDraw();
-         
-            float boxW = m_width - 20.0f;
-            float boxH = m_height - 20.0f;
-            
+                     
             D2D1_ROUNDED_RECT Box = {};
         
-            //leftBox.rect = { w - boxW/2.0f, (h - boxH) / 2.0f, 10.0f + boxW,  (h + boxH) / 2.0f };
-            Box.rect = {10, 10,(w-10),h-10};
+            Box.rect = {10, 10,(w-10),(h-10)};
             Box.radiusX = 3;
             Box.radiusY = 3;
 
@@ -85,7 +76,6 @@ class OverlayCarLeft : public Overlay
 
 
     protected:
-        int m_leftRight;
         bool m_isLeft;
-        bool m_isRight;
+       
 };
