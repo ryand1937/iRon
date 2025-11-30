@@ -293,7 +293,15 @@ void Overlay::update()
         rr.rect = { 0.5f, 0.5f, w-0.5f, h-0.5f };
         rr.radiusX = cornerRadius;
         rr.radiusY = cornerRadius;
-        m_brush->SetColor( g_cfg.getFloat4( m_name, "background_col", float4(0,0,0,0.7f) ) );
+
+        if (hasCustomBgColor())
+        {
+            m_brush->SetColor(g_cfg.getFloat4(m_name, "Custbackground_col", float4(0, 0, 0, 0.0f)));
+        }
+        else
+        {
+            m_brush->SetColor(g_cfg.getFloat4(m_name, "background_col", float4(0, 0, 0, 0.7f)));
+        }
         m_renderTarget->FillRoundedRectangle( &rr, m_brush.Get() );
         m_renderTarget->EndDraw();
     }
@@ -373,4 +381,5 @@ void Overlay::onConfigChanged() {}
 void Overlay::onSessionChanged() {}
 float2 Overlay::getDefaultSize() { return float2(400,300); }
 bool Overlay::hasCustomBackground() { return false; }
+bool Overlay::hasCustomBgColor() { return false; }
 

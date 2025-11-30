@@ -160,6 +160,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Config.h" />
+    <ClInclude Include="OverlayCarLeft.h" />
+    <ClInclude Include="OverlayCarRight.h" />
     <ClInclude Include="OverlayCover.h" />
     <ClInclude Include="OverlayDDU.h" />
     <ClInclude Include="OverlayDebug.h" />

@@ -43,6 +43,8 @@ SOFTWARE.
 #include "OverlayCover.h"
 #include "OverlayRelative.h"
 #include "OverlayInputs.h"
+#include "OverlayCarLeft.h"
+#include "OverlayCarRight.h"
 #include "OverlayStandings.h"
 #include "OverlayDebug.h"
 #include "OverlayDDU.h"
@@ -57,7 +59,10 @@ enum class Hotkey
     DDU,
     Inputs,
     Relative,
-    Cover
+    Cover,
+    CarLeft,
+    CarRight
+
 };
 
 static void registerHotkeys()
@@ -68,6 +73,9 @@ static void registerHotkeys()
     UnregisterHotKey( NULL, (int)Hotkey::Inputs );
     UnregisterHotKey( NULL, (int)Hotkey::Relative );
     UnregisterHotKey( NULL, (int)Hotkey::Cover );
+    UnregisterHotKey(NULL, (int)Hotkey::CarLeft);
+    UnregisterHotKey(NULL, (int)Hotkey::CarRight);
+    
 
     UINT vk, mod;
 
@@ -88,6 +96,12 @@ static void registerHotkeys()
 
     if( parseHotkey( g_cfg.getString("OverlayCover","toggle_hotkey","ctrl-4"),&mod,&vk) )
         RegisterHotKey( NULL, (int)Hotkey::Cover, mod, vk );
+
+    if (parseHotkey(g_cfg.getString("OverlayCarLeft", "toggle_hotkey", "ctrl-5"), &mod, &vk))
+        RegisterHotKey(NULL, (int)Hotkey::CarLeft, mod, vk);
+
+    if (parseHotkey(g_cfg.getString("OverlayCarRight", "toggle_hotkey", "ctrl-5"), &mod, &vk))
+        RegisterHotKey(NULL, (int)Hotkey::CarRight, mod, vk);
 }
 
 static void handleConfigChange( vector<Overlay*> overlays, ConnectionStatus status )
@@ -193,6 +207,7 @@ int main()
     printf("    Toggle inputs overlay:        %s\n", g_cfg.getString("OverlayInputs","toggle_hotkey","").c_str() );
     printf("    Toggle relative overlay:      %s\n", g_cfg.getString("OverlayRelative","toggle_hotkey","").c_str() );
     printf("    Toggle cover overlay:         %s\n", g_cfg.getString("OverlayCover","toggle_hotkey","").c_str() );
+    printf("    Toggle Side Indicators:       %s\n", g_cfg.getString("OverlayCarLeft", "toggle_hotkey", "").c_str());
     printf("\niRon will generate a file called \'config.json\' in its current directory. This file\n"\
            "stores your settings. You can edit the file at any time, even while iRon is running,\n"\
            "to customize your overlays and hotkeys.\n\n");
@@ -206,6 +221,8 @@ int main()
     overlays.push_back( new OverlayCover() );
     overlays.push_back( new OverlayRelative() );
     overlays.push_back( new OverlayInputs() );
+    overlays.push_back(new OverlayCarLeft());
+    overlays.push_back(new OverlayCarRight());
     overlays.push_back( new OverlayStandings( mapa ) );
     overlays.push_back( new OverlayDDU() );
 #ifdef _DEBUG
@@ -223,6 +240,8 @@ int main()
 
         // Refresh connection and session info
         status = ir_tick();
+
+
         if( status != prevStatus )
         {
             if( status == ConnectionStatus::DISCONNECTED )
@@ -303,12 +322,19 @@ int main()
                     case (int)Hotkey::Inputs:
                         g_cfg.setBool( "OverlayInputs", "enabled", !g_cfg.getBool("OverlayInputs","enabled",true) );
                         break;
+
                     case (int)Hotkey::Relative:
                         g_cfg.setBool( "OverlayRelative", "enabled", !g_cfg.getBool("OverlayRelative","enabled",true) );
                         break;
                     case (int)Hotkey::Cover:
                         g_cfg.setBool( "OverlayCover", "enabled", !g_cfg.getBool("OverlayCover","enabled",true) );
                         break;
+                    case (int)Hotkey::CarLeft:                   
+                    case (int)Hotkey::CarRight:
+                        g_cfg.setBool("OverlayCarLeft", "enabled", !g_cfg.getBool("OverlayCarLeft", "enabled", true));
+                        g_cfg.setBool("OverlayCarRight", "enabled", !g_cfg.getBool("OverlayCarRight", "enabled", true));
+                        break;
+
                     }
                     
                     g_cfg.save();
