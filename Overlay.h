@@ -68,6 +68,7 @@ class Overlay
         virtual void    onSessionChanged();
         virtual float2  getDefaultSize();
         virtual bool    hasCustomBackground();
+        virtual bool    hasCustomBgColor();
 
         std::string     m_name;
         HWND            m_hwnd = 0;
